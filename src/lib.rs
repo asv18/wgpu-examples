@@ -1,6 +1,5 @@
 pub mod types;
 
-use types::State::State;
 use winit::{
     event::*,
     event_loop::EventLoop,
@@ -11,12 +10,14 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+use types::state::State;
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Debug).expect("Couldn't initialize logger");
+            console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
         } else {
             env_logger::init();
         }
@@ -30,7 +31,6 @@ pub async fn run() {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(450, 400));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
@@ -42,6 +42,8 @@ pub async fn run() {
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
+
+        let _ = window.request_inner_size(PhysicalSize::new(630, 560));
     }
 
     let mut state = State::new(&window).await;
@@ -52,7 +54,7 @@ pub async fn run() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == state.window().id() => if !state.input(event) { // UPDATED!
+            } if window_id == state.window().id() => if !state.input(event) {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -65,8 +67,10 @@ pub async fn run() {
                         ..
                     } => control_flow.exit(),
                     WindowEvent::Resized(physical_size) => {
+                        // log::info!("physical_size: {physical_size:?}");
+                        surface_configured = true;
                         state.resize(*physical_size);
-                    },
+                    }
                     WindowEvent::RedrawRequested => {
                         // This tells winit that we want another frame after this one
                         state.window().request_redraw();
@@ -96,8 +100,9 @@ pub async fn run() {
                     },
                     _ => {}
                 }
-            }
+            },
             _ => {}
         }
-    }).unwrap();
+    })
+        .unwrap();
 }
