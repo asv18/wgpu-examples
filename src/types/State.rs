@@ -12,10 +12,19 @@ pub struct State<'a> {
     clear_color: wgpu::Color,
     window: &'a Window,
     render_pipeline: wgpu::RenderPipeline,
+    //
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_vertices: u32,
     num_indices: u32,
+    //
+    // for challenge 4
+    // challenge_vertex_buffer: wgpu::Buffer,
+    // challenge_index_buffer: wgpu::Buffer,
+    // challenge_num_vertices: u32,
+    // challenge_num_indices: u32,
+    // selected_polygon: bool,
+    // for challenge 3
     // render_pipelines: Vec<wgpu::RenderPipeline>,
     // selected_pipeline: usize,
 }
@@ -140,51 +149,51 @@ impl<'a> State<'a> {
             cache: None, // allows wgpu to cache shader compilation data
         });
 
-        // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        //     label: Some("Shader"),
-        //     source: wgpu::ShaderSource::Wgsl(include_str!("challenge_3.wgsl").into()),
-        // });
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("challenge_3.wgsl").into()),
+        });
 
-        // let render_pipeline_2 = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        //     label: Some("Render Pipeline"),
-        //     layout: Some(&render_pipeline_layout),
-        //     vertex: wgpu::VertexState {
-        //         module: &shader,
-        //         entry_point: Some("vs_main"), // specifies the entry point function in shader.wgsl
-        //         buffers: &[], // tells wgpu what types of vertices we want to pass from the wgsl file
-        //         compilation_options: wgpu::PipelineCompilationOptions::default(),
-        //     },
-        //     fragment: Some(wgpu::FragmentState { // stores color data
-        //         module: &shader,
-        //         entry_point: Some("fs_main"), // entry point for fragment
-        //         targets: &[Some(wgpu::ColorTargetState { // tells wgpu what color outputs it should set up
-        //             format: config.format,
-        //             blend: Some(wgpu::BlendState::REPLACE),
-        //             write_mask: wgpu::ColorWrites::ALL,
-        //         })],
-        //         compilation_options: wgpu::PipelineCompilationOptions::default(),
-        //     }),
-        //     primitive: wgpu::PrimitiveState {
-        //         topology: wgpu::PrimitiveTopology::TriangleList, // specifies each entry into the list is a triangle
-        //         strip_index_format: None,
-        //         front_face: wgpu::FrontFace::Ccw, // tells wgpu whether or not triangles are facing forwards or backwards; Ccw specifies triangles are forwards if their vertices are drawn ccw; cw follows similarly but with cw
-        //         cull_mode: Some(wgpu::Face::Back), // culls triangles that are not facing forwards
-        //         // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-        //         polygon_mode: wgpu::PolygonMode::Fill,
-        //         // Requires Features::DEPTH_CLIP_CONTROL
-        //         unclipped_depth: false,
-        //         // Requires Features::CONSERVATIVE_RASTERIZATION
-        //         conservative: false,
-        //     },
-        //     depth_stencil: None, // 1.
-        //     multisample: wgpu::MultisampleState {
-        //         count: 1, // how many sample pipelines we need to specify
-        //         mask: !0, // specifies which samples should be active
-        //         alpha_to_coverage_enabled: false, // anti-aliasing stuff
-        //     },
-        //     multiview: None, // indicates how many array layers the render attachments can have
-        //     cache: None, // allows wgpu to cache shader compilation data
-        // });
+        let render_pipeline_2 = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"), // specifies the entry point function in shader.wgsl
+                buffers: &[], // tells wgpu what types of vertices we want to pass from the wgsl file
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState { // stores color data
+                module: &shader,
+                entry_point: Some("fs_main"), // entry point for fragment
+                targets: &[Some(wgpu::ColorTargetState { // tells wgpu what color outputs it should set up
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList, // specifies each entry into the list is a triangle
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw, // tells wgpu whether or not triangles are facing forwards or backwards; Ccw specifies triangles are forwards if their vertices are drawn ccw; cw follows similarly but with cw
+                cull_mode: Some(wgpu::Face::Back), // culls triangles that are not facing forwards
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: None, // 1.
+            multisample: wgpu::MultisampleState {
+                count: 1, // how many sample pipelines we need to specify
+                mask: !0, // specifies which samples should be active
+                alpha_to_coverage_enabled: false, // anti-aliasing stuff
+            },
+            multiview: None, // indicates how many array layers the render attachments can have
+            cache: None, // allows wgpu to cache shader compilation data
+        });
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -213,13 +222,18 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
-            clear_color: wgpu::Color::BLUE,
+            clear_color: wgpu::Color::RED,
             window,
             render_pipeline,
             vertex_buffer,
             index_buffer,
             num_vertices,
             num_indices,
+            // challenge_vertex_buffer,
+            // challenge_index_buffer,
+            // challenge_num_vertices,
+            // challenge_num_indices,
+            // selected_polygon: false,
             // render_pipelines: vec![render_pipeline_1, render_pipeline_2],
             // selected_pipeline: 0,
         }
@@ -250,6 +264,18 @@ impl<'a> State<'a> {
             //     ..
             // } => {
             //     self.selected_pipeline = if *state == ElementState::Released { 0 } else { 1};
+            //     true
+            // },
+            // WindowEvent::KeyboardInput {
+            //     event:
+            //         KeyEvent {
+            //             state,
+            //             physical_key: PhysicalKey::Code(KeyCode::Space),
+            //             ..
+            //         },
+            //     ..
+            // } => {
+            //     self.selected_polygon = *state != ElementState::Released;
             //     true
             // },
             // WindowEvent::CursorMoved { device_id, position } => {
@@ -296,8 +322,9 @@ impl<'a> State<'a> {
 
             render_pass.set_pipeline(&self.render_pipeline); // 2.
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1); // 2.
+
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
 
             render_pass.draw(0..self.num_vertices, 0..1);
         }
