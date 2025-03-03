@@ -1,3 +1,4 @@
 pub mod state;
-mod vertex;
+mod colored_vertex;
+mod textured_vertex;
 mod polygon_buffer;

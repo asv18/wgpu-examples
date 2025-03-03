@@ -1,7 +1,7 @@
 use wgpu::{Device, PipelineLayout, RenderPipeline, ShaderModuleDescriptor, SurfaceConfiguration};
 use winit::{event::{ElementState, KeyEvent, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
-use super::{polygon_buffer::PolygonBuffer, vertex::{self, Vertex}};
+use super::{polygon_buffer::PolygonBuffer, colored_vertex::{self, ColoredVertex as Vertex}};
 
 pub struct State<'a> {
     pub surface: wgpu::Surface<'a>,
@@ -13,7 +13,7 @@ pub struct State<'a> {
     window: &'a Window,
     render_pipeline: wgpu::RenderPipeline,
     //
-    polygon_buffer: PolygonBuffer,
+    polygon_buffer: PolygonBuffer<Vertex>,
     //
     // for challenge 4
     // challenge_vertex_buffer: wgpu::Buffer,
@@ -97,6 +97,11 @@ impl<'a> State<'a> {
 
         let render_pipeline = Self::generate_render_pipeline(
             wgpu::include_wgsl!("resources/shader.wgsl"),
+            // alternatively:
+            // wgpu::ShaderModuleDescriptor {
+            //     label: Some("Shader"),
+            //     source: wgpu::ShaderSource::Wgsl("resources/shader.wgsl"),
+            // }
             &render_pipeline_layout,
             &device,
             &config,
@@ -130,12 +135,6 @@ impl<'a> State<'a> {
 
     fn generate_render_pipeline(source: ShaderModuleDescriptor, layout: &PipelineLayout, device: &Device, config: &SurfaceConfiguration) -> RenderPipeline {
         let shader = device.create_shader_module(source);
-
-        // alternatively:
-        // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        //     label: Some("Shader"),
-        //     source: wgpu::ShaderSource::Wgsl(source),
-        // });
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
