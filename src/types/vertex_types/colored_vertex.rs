@@ -1,3 +1,5 @@
+use super::Vertex;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ColoredVertex {
@@ -5,9 +7,8 @@ pub struct ColoredVertex {
     color: [f32; 3],
 }
 
-// lib.rs
-impl ColoredVertex {
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+impl Vertex for ColoredVertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<ColoredVertex>() as wgpu::BufferAddress, // defines how wide a vertex will be in memory
             step_mode: wgpu::VertexStepMode::Vertex, // tells the pipeline whether to handle the vertices in a per-vertex or per-instance case
@@ -25,7 +26,10 @@ impl ColoredVertex {
             ]
         }
     }
+}
 
+// lib.rs
+impl ColoredVertex {
     pub fn generate_polygon(num_sides: u16, radius: f32) -> (Vec<ColoredVertex>, Vec<u16>) {
         let angle = std::f32::consts::PI * 2.0 / num_sides as f32;
         let vertices = (0..(num_sides * 3))

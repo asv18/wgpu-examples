@@ -2,7 +2,9 @@ use std::marker::PhantomData;
 
 use wgpu::{util::DeviceExt, Device};
 
-pub struct PolygonBuffer<T: bytemuck::Pod + bytemuck::Zeroable> {
+use super::vertex_types::Vertex;
+
+pub struct PolygonBuffer<T: bytemuck::Pod + bytemuck::Zeroable + Vertex> {
     // check macro kata to make stuff like this more readable
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -11,7 +13,7 @@ pub struct PolygonBuffer<T: bytemuck::Pod + bytemuck::Zeroable> {
     _marker: PhantomData<T>,
 }
 
-impl<T: bytemuck::Pod + bytemuck::Zeroable> PolygonBuffer<T> {
+impl<T: bytemuck::Pod + bytemuck::Zeroable + Vertex> PolygonBuffer<T> {
     pub fn new(device: &Device, vertices: &[T], indices: &[u16]) -> Self {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {

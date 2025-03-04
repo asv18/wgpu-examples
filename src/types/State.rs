@@ -1,7 +1,10 @@
-use wgpu::{Device, PipelineLayout, RenderPipeline, ShaderModuleDescriptor, SurfaceConfiguration};
+use image::DynamicImage;
+use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Color, Device, PipelineLayout, RenderPipeline, ShaderModuleDescriptor, SurfaceConfiguration};
 use winit::{event::{ElementState, KeyEvent, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
-use super::{polygon_buffer::PolygonBuffer, colored_vertex::{self, ColoredVertex as Vertex}};
+use crate::types::texture;
+
+use super::{camera::{Camera, CameraUniform}, polygon_buffer::PolygonBuffer, vertex_types::{colored_vertex::*, textured_vertex::*, Vertex}};
 
 pub struct State<'a> {
     pub surface: wgpu::Surface<'a>,
@@ -12,8 +15,18 @@ pub struct State<'a> {
     clear_color: wgpu::Color,
     window: &'a Window,
     render_pipeline: wgpu::RenderPipeline,
+    polygon_buffer: PolygonBuffer<TexturedVertex>,
+    diffuse_bind_group: wgpu::BindGroup,
+    diffuse_texture: texture::Texture,
+    camera: Camera,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
     //
-    polygon_buffer: PolygonBuffer<Vertex>,
+    // for challenge 5
+    // challenge_diffuse_bind_group: wgpu::BindGroup,
+    // challenge_diffuse_texture: texture::Texture,
+    // selected_image: bool,
     //
     // for challenge 4
     // challenge_vertex_buffer: wgpu::Buffer,
@@ -21,6 +34,7 @@ pub struct State<'a> {
     // challenge_num_vertices: u32,
     // challenge_num_indices: u32,
     // selected_polygon: bool,
+    //
     // for challenge 3
     // render_pipelines: Vec<wgpu::RenderPipeline>,
     // selected_pipeline: usize,
@@ -89,14 +103,111 @@ impl<'a> State<'a> {
             view_formats: vec![],
         };
 
+        // surface.configure(&device, &config);
+
+        let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+            label: Some("texture_bind_group_layout"),
+        });
+
+        let diffuse_bytes = include_bytes!("resources/image.png");
+        let (
+            diffuse_bind_group,
+            diffuse_texture
+        ) = Self::generate_texture(diffuse_bytes, "resources/image.png", &texture_bind_group_layout, &device, &queue);
+
+        // let challenge_diffuse_bytes = include_bytes!("resources/challenge_image.jpeg");
+        // let (
+        //     challenge_diffuse_bind_group,
+        //     challenge_diffuse_texture
+        // ) = Self::generate_texture(challenge_diffuse_bytes, "resources/challenge_image.jpeg", &texture_bind_group_layout, &device, &queue);
+
+        
+
+        let camera = Camera {
+            // position the camera 1 unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 1.0, 2.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera);
+
+        let camera_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[camera_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+
+        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("camera_bind_group_layout"),
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("camera_bind_group"),
+        });
+
+
+
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts: &[
+                &texture_bind_group_layout,
+                &camera_bind_group_layout,
+            ],
             push_constant_ranges: &[],
         });
 
-        let render_pipeline = Self::generate_render_pipeline(
-            wgpu::include_wgsl!("resources/shader.wgsl"),
+        let render_pipeline = Self::generate_render_pipeline::<TexturedVertex>(
+            wgpu::include_wgsl!("resources/camera_shader.wgsl"),
             // alternatively:
             // wgpu::ShaderModuleDescriptor {
             //     label: Some("Shader"),
@@ -107,11 +218,10 @@ impl<'a> State<'a> {
             &config,
         );
         
-        let (vertices, indices) = Vertex::generate_polygon(5, 0.5);
-
-        let polygon_buffer = PolygonBuffer::new(&device, &vertices, &indices);
-
+        // let (vertices, indices) = ColoredVertex::generate_polygon(5, 0.5);
         // let challenge_render_pipeline = Self::generate_render_pipeline(include_str!("resources/challenge_3.wgsl").into(), &render_pipeline_layout, &device, &config);
+
+        let polygon_buffer = PolygonBuffer::new(&device, VERTICES, INDICES);
 
         Self {
             surface,
@@ -119,10 +229,19 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
-            clear_color: wgpu::Color::RED,
+            clear_color: Color { r: 0.0, g: 0.5, b: 0.5, a: 1.0, },
             window,
             render_pipeline,
             polygon_buffer,
+            diffuse_bind_group,
+            diffuse_texture,
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,      
+            // challenge_diffuse_bind_group,
+            // challenge_diffuse_texture,
+            // selected_image: false,
             // challenge_vertex_buffer,
             // challenge_index_buffer,
             // challenge_num_vertices,
@@ -133,7 +252,28 @@ impl<'a> State<'a> {
         }
     }
 
-    fn generate_render_pipeline(source: ShaderModuleDescriptor, layout: &PipelineLayout, device: &Device, config: &SurfaceConfiguration) -> RenderPipeline {
+    fn generate_texture(diffuse_bytes: &[u8], label: &str, texture_bind_group_layout: &BindGroupLayout, device: &Device, queue: &wgpu::Queue) -> (wgpu::BindGroup, texture::Texture) {
+        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, label).unwrap();
+
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        (diffuse_bind_group, diffuse_texture)
+    }
+
+    fn generate_render_pipeline<T: Vertex>(source: ShaderModuleDescriptor, layout: &PipelineLayout, device: &Device, config: &SurfaceConfiguration) -> RenderPipeline {
         let shader = device.create_shader_module(source);
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -143,7 +283,7 @@ impl<'a> State<'a> {
                 module: &shader,
                 entry_point: Some("vs_main"), // specifies the entry point function in shader.wgsl
                 buffers: &[
-                    Vertex::desc(),
+                    T::desc(),
                 ], // tells wgpu what types of vertices we want to pass from the wgsl file
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
@@ -204,19 +344,10 @@ impl<'a> State<'a> {
             //         },
             //     ..
             // } => {
-            //     self.selected_pipeline = if *state == ElementState::Released { 0 } else { 1};
-            //     true
-            // },
-            // WindowEvent::KeyboardInput {
-            //     event:
-            //         KeyEvent {
-            //             state,
-            //             physical_key: PhysicalKey::Code(KeyCode::Space),
-            //             ..
-            //         },
-            //     ..
-            // } => {
-            //     self.selected_polygon = *state != ElementState::Released;
+            //     // self.selected_pipeline = if *state == ElementState::Released { 0 } else { 1};
+            //     // self.selected_polygon = *state != ElementState::Released;
+            //     // self.selected_image = *state != ElementState::Released;
+
             //     true
             // },
             // WindowEvent::CursorMoved { device_id, position } => {
@@ -261,7 +392,10 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline); // 2.
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+
             render_pass.set_vertex_buffer(0, self.polygon_buffer.vertex_buffer.slice(..));
 
             render_pass.set_index_buffer(self.polygon_buffer.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
