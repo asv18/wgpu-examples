@@ -1,16 +1,16 @@
 use wgpu::{
-    util::DeviceExt, BindGroup, BindGroupLayout, Color, Device, PipelineLayout,
+    util::DeviceExt, BindGroupLayout, Color, Device, PipelineLayout,
     RenderPipeline, ShaderModuleDescriptor, SurfaceConfiguration
 };
 
-use winit::{event::{ElementState, KeyEvent, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
+use winit::{event::WindowEvent, window::Window};
 
 use crate::types::texture;
 
 use super::{
     camera_types::{camera::Camera, camera_controller::CameraController, camera_uniform::CameraUniform},
     polygon_buffer::PolygonBuffer,
-    vertex_types::{colored_vertex::*, textured_vertex::*, Vertex}
+    vertex_types::{textured_vertex::*, Vertex}
 };
 
 pub struct State<'a> {
@@ -24,12 +24,15 @@ pub struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
     polygon_buffer: PolygonBuffer<TexturedVertex>,
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture,
+    _diffuse_texture: texture::Texture,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
+    //
+    // for challenge 6
+    // camera_staging: CameraStaging,
     //
     // for challenge 5
     // challenge_diffuse_bind_group: wgpu::BindGroup,
@@ -234,12 +237,12 @@ impl<'a> State<'a> {
             render_pipeline,
             polygon_buffer,
             diffuse_bind_group,
-            diffuse_texture,
+            _diffuse_texture: diffuse_texture,
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
-            camera_controller,   
+            camera_controller,
             // challenge_diffuse_bind_group,
             // challenge_diffuse_texture,
             // selected_image: false,
@@ -372,7 +375,11 @@ impl<'a> State<'a> {
     pub fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
-        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

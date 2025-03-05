@@ -30,7 +30,7 @@ impl Vertex for ColoredVertex {
 
 // lib.rs
 impl ColoredVertex {
-    pub fn generate_polygon(num_sides: u16, radius: f32) -> (Vec<ColoredVertex>, Vec<u16>) {
+    pub fn _generate_polygon(num_sides: u16, radius: f32) -> (Vec<ColoredVertex>, Vec<u16>) {
         let angle = std::f32::consts::PI * 2.0 / num_sides as f32;
         let vertices = (0..(num_sides * 3))
             .map(|i| {

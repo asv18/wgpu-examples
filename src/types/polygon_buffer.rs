@@ -8,7 +8,7 @@ pub struct PolygonBuffer<T: bytemuck::Pod + bytemuck::Zeroable + Vertex> {
     // check macro kata to make stuff like this more readable
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
-    pub num_vertices: u32,
+    pub _num_vertices: u32,
     pub num_indices: u32,
     _marker: PhantomData<T>,
 }
@@ -31,10 +31,10 @@ impl<T: bytemuck::Pod + bytemuck::Zeroable + Vertex> PolygonBuffer<T> {
             }
         );
         
-        let num_vertices = vertices.len() as u32;
+        let _num_vertices = vertices.len() as u32;
 
         let num_indices = indices.len() as u32;
 
-        Self { vertex_buffer, index_buffer, num_vertices, num_indices, _marker: PhantomData }
+        Self { vertex_buffer, index_buffer, _num_vertices, num_indices, _marker: PhantomData }
     }
 }
